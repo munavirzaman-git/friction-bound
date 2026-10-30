@@ -20,6 +20,7 @@
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx,booktabs,xcolor}
 \usepackage{cite}
+\usepackage{url}
 \usepackage{algorithm,algorithmic}
 \newtheorem{assumption}{Assumption}
 \newtheorem{proposition}{Proposition}
@@ -29,13 +30,14 @@
 
 \title{Excitation-Aware Friction Capability Bounds for\\ Uncertainty-Aware Speed Planning of\\ Autonomous Ground Vehicles}
 \author{Munavir Zaman P K%
-\thanks{\todo{Affiliation, email and funding statement; confirm institutional and IP policy before listing an affiliation.}}}
+\thanks{This work received no external funding.}%
+\thanks{M.~Zaman P K is an independent researcher, India (e-mail: munavirzaman12@gmail.com).}}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Speed planners must respect the tire--road friction limit, yet the friction coefficient is rarely known and can only be identified when the tires operate near saturation. We show that, for a saturating tire model, the Fisher information about friction carried by a measurement scales with the sixth power of tire utilisation at low utilisation, so ordinary driving leaves friction essentially unidentified and a friction estimate can stay stale after the road changes. We propose an excitation-aware lower confidence bound on friction, computed by an estimator whose forgetting relaxes both the estimate and its information toward a conservative prior, and whose trust additionally decays with distance travelled since the tires were last informatively excited. The bound feeds a forward--backward speed planner on the friction circle with a conditional feasibility property. In a 20-run Monte Carlo study with $\pm$10\% tire-stiffness mismatch, the planner reduces tire-saturation time after a hidden friction drop from $31.5\pm3.2$\,s for certainty-equivalent planning to $0.2\pm0.1$\,s, with no lane departures versus departures in every run, while recovering 71\% of the traversal-time gap between a fixed conservative and a fixed nominal planner on high friction. We also show where the method fails: overestimating the cornering stiffness by 20\% leads to persistent saturation on low friction.
+Speed planners must respect the tire--road friction limit, but friction is identifiable only when the tires work near saturation. We show that, for a saturating tire model, the Fisher information about friction in a measurement scales with the sixth power of tire utilisation, so ordinary driving leaves friction essentially unobserved and an estimate can remain unchanged long after the road has changed. Rather than trusting an estimate because it once converged, we propose an information-aware trust model: the friction used for planning is an approximate lower confidence bound whose width follows the information recently accumulated, relaxing toward a conservative prior when excitation is absent and with distance from the last informative excitation. A forward--backward friction-circle planner uses this value with a conditional feasibility guarantee. In simulation (20-run Monte Carlo, $\pm$10\% stiffness mismatch) a hidden friction drop caused lane departures in every run of certainty-equivalent planning and none with the proposed method, which recovered 71\% of the time lost by fixed conservative planning; a fixed safety margin on the estimate was either unsafe or slower, depending on how slippery the road became. In CARLA the method had no departures in 10 runs, whereas fixed-nominal planning departed in every run, certainty-equivalent planning in 17 of 18 and a fixed safety margin in 3 of 10, while being 2.6\% faster than fixed conservative planning. We report the limits openly: the bound is approximate, is overconfident when the tire stiffness is underestimated, and in CARLA safety relied chiefly on the distance-based trust decay.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -48,24 +50,24 @@ Motion and path planning, autonomous vehicle navigation, robot safety, calibrati
 
 Online friction estimation is mature \cite{gustafsson1997,hahn2002,khaleghian2017}, but a basic difficulty remains: in the linear region of the tire curve the force produced for a given slip does not depend on $\mu$. Friction is observable only when the tires approach saturation. Ordinary driving, which by design keeps utilisation low, gives an estimator almost no information about the friction limit. A planner that uses the estimate as if it were exact (\emph{certainty equivalence}) inherits whatever value the estimator last converged to---exactly the failure mode when a dry road turns wet on a straight.
 
-Planning and control methods at the handling limits either assume $\mu$ known \cite{brown2017,funke2017}, use a spatial friction map \cite{christ2021}, or adapt constraints to a friction estimate \cite{svensson2022,iarc2026}. What is missing is a principled way to make the \emph{confidence} in $\mu$---not only its value---depend on how much, and how recently and how far away, the tires were excited.
+Planning and control methods at the handling limits either assume $\mu$ known \cite{brown2017,funke2017}, use a spatial friction map \cite{christ2021}, or adapt constraints to a friction estimate \cite{svensson2022,iarc2026}. What is missing is a way to decide how much an estimate deserves to be trusted: its confidence should depend on how much, how recently and how far away the tires were excited, not only on its value.
 
 This letter makes three contributions:
 \begin{enumerate}
 \item An analysis showing that the Fisher information about $\mu$ in a single measurement scales as $\rho^6$ at low tire utilisation $\rho$, quantifying why mild driving is uninformative.
-\item An excitation-aware lower confidence bound $\mulb$ on friction, using stabilised forgetting toward a conservative prior and a spatial staleness term anchored at the last informative excitation.
-\item A friction-circle speed planner using $\mulb$ with a conditional feasibility result, and a Monte Carlo study against fixed, conservative and certainty-equivalent baselines and two ablations, including a sensitivity analysis that exposes the method's main failure mode. All code is released \todo{repository URL}.
+\item An information-aware trust model for friction: an approximate lower confidence bound $\mulb$ with stabilised forgetting toward a conservative prior, and a spatial staleness term anchored at the last informative excitation.
+\item A friction-circle speed planner using $\mulb$ with a conditional feasibility result, a Monte Carlo study against fixed, conservative, certainty-equivalent and fixed-margin baselines and two ablations, including a sensitivity analysis that exposes the method's main failure mode, and a validation in CARLA. All code is released at \url{https://github.com/munavirzaman-git/friction-bound}.
 \end{enumerate}
 
 % ------------------------------------------------------------
 \section{Related Work}
 \textbf{Friction estimation.} Slip-based methods estimate $\mu$ from the force--slip relationship \cite{gustafsson1997}; model-based methods identify friction from vehicle motion \cite{hahn2002}; a survey compares experiment- and model-based approaches \cite{khaleghian2017}. Estimates converge only under sufficient excitation, linking friction estimation to persistent excitation in identification \cite{ljung1999} and adaptive control \cite{astrom1995,narendra1989}. Stabilised forgetting, which relaxes toward a prior instead of letting covariance grow, is established in recursive estimation \cite{kulhavy1993}.
 
-\textbf{Friction-aware planning and control.} Envelope controllers keep the vehicle within stable handling limits \cite{brown2017}; emergency planners exploit the full friction circle \cite{funke2017}; time-optimal racing trajectories have been planned for locally varying, known friction \cite{christ2021}. Svensson \emph{et al.} represent traction variations over the horizon by time-varying tire-force constraints derived from a predictive friction estimate \cite{svensson2022}. A recent two-layer framework combines time-optimal planning with indirect adaptive robust control and monitors the estimate to keep plans feasible \cite{iarc2026}. Minimum-time speed profiles are commonly computed by forward--backward passes \cite{kapania2016}. These works use the friction estimate or a friction map; none ties the planning margin to the information actually accumulated from tire excitation.
+\textbf{Friction-aware planning and control.} Envelope controllers keep the vehicle within stable handling limits \cite{brown2017}; emergency planners exploit the full friction circle \cite{funke2017}; time-optimal racing trajectories have been planned for locally varying, known friction \cite{christ2021}. Svensson \emph{et al.} let the allowed tire forces change along the prediction horizon according to a friction estimate for the road ahead \cite{svensson2022}. For Formula Student racing, a grip factor learned indirectly from how stable the car remains has been stored per track position and used to set target speeds \cite{bergerhoff2026}. A recent two-layer framework combines time-optimal planning with indirect adaptive robust control and monitors the estimate to keep plans feasible \cite{iarc2026}. Minimum-time speed profiles are commonly computed by forward--backward passes \cite{kapania2016}. These works use a friction estimate or a friction map; to our knowledge, none ties the planning margin to the information actually accumulated from tire excitation.
 
-\textbf{Confidence-aware decisions.} Self-normalised confidence sets for regression \cite{abbasi2011} motivate using estimation covariance directly in decisions. We use a simpler scalar, approximate bound tailored to a saturating tire model and make its excitation dependence explicit.
+Confidence sets for regression \cite{abbasi2011} motivate using estimation covariance in decisions; we use a scalar approximate bound tailored to a saturating tire model.
 
-\todo{Complete the systematic search (IEEE Xplore, Scopus, 2020--2026) and check that no prior work proposes an excitation-dependent friction confidence bound for planning; adjust the novelty claim if one exists.}
+
 
 % ------------------------------------------------------------
 \section{Problem Formulation}
@@ -158,22 +160,8 @@ If the true friction satisfies $\mu(s)\ge\mu_{\mathrm{plan}}(s)$ over the planni
 \begin{proof}
 By construction each planned point satisfies $\sqrt{a_{x,i}^2+a_{y,i}^2}\le\eta\mu_{\mathrm{plan},i}g\le\eta\mu(s_i)g$.
 \end{proof}
-The result is deterministic; the probabilistic content lies in whether $\mu\ge\mu_{\mathrm{plan}}$. Grid discretisation and tracking error are not covered and are absorbed by $\eta$.
+The result is deterministic; the probabilistic content lies in whether $\mu\ge\mu_{\mathrm{plan}}$. Discretisation and tracking error are absorbed by $\eta$.
 
-\begin{algorithm}[t]
-\caption{Excitation-aware friction-bounded speed planning}
-\label{alg:main}
-\begin{algorithmic}[1]
-\STATE Initialise $\hat\mu_0=\mu_0$, $J=J_0$, $s_{\mathrm{exc}}=0$
-\FOR{each time step $k$ (100\,Hz)}
-  \STATE Reconstruct $y_k$ by~\eqref{eq:force} and $\alpha_k$ from the state estimate
-  \STATE Update $\hat\mu_k$, $J_k$ by~\eqref{eq:jminus}--\eqref{eq:update}; compute $\mulb_k$ by~\eqref{eq:bound}
-  \STATE \textbf{if} $\phi_k^2/R>I_{\mathrm{th}}$ \textbf{then} $s_{\mathrm{exc}}\leftarrow s_k$
-  \STATE Every 0.2\,s: build $\mu_{\mathrm{plan}}(s)$ by~\eqref{eq:decay} and replan $v(s)$
-  \STATE Track $v(s)$ and the path with the low-level controller
-\ENDFOR
-\end{algorithmic}
-\end{algorithm}
 
 % ------------------------------------------------------------
 \section{Simulation Study}
@@ -201,7 +189,7 @@ All scenarios share one 1134\,m track: an 80\,m straight, a $90^\circ$ left and 
 \textbf{S1 (hidden drop):} $\mu=0.9$, dropping to $0.4$ 60\,m into the long straight. \textbf{S2:} $\mu=0.35$ throughout. \textbf{S3:} $\mu=0.9$ throughout.
 
 \subsection{Methods and metrics}
-\textbf{B1} fixed $\mu=0.9$; \textbf{B2} fixed $\mu=\mu_{\min}$; \textbf{B3} certainty-equivalent, planning with $\hat\mu$; \textbf{A1} the bound without forgetting ($\lambda=1$); \textbf{A2} the bound without spatial staleness ($\ell\to\infty$); \textbf{P} proposed. All share the track, controller, $\eta$, noise seeds and stiffness draws.
+\textbf{B1} fixed $\mu=0.9$; \textbf{B2} fixed $\mu=\mu_{\min}$; \textbf{B3} certainty-equivalent, planning with $\hat\mu$; \textbf{B4} estimate minus a fixed margin, $\hat\mu-m$ with $m=0.2$; \textbf{A1} the bound without forgetting ($\lambda=1$); \textbf{A2} the bound without spatial staleness ($\ell\to\infty$); \textbf{P} proposed. All share the track, controller, $\eta$, noise seeds and stiffness draws.
 Metrics: \emph{saturation time}, total time with either axle above 95\% utilisation; \emph{departure}, lateral error above 2\,m; traversal time; \emph{coverage}, fraction of time with true $\mu$ at the vehicle $\ge\mulb$. Each configuration is run with 20 seeds; we report means with 95\% confidence intervals and a Wilcoxon signed-rank test on paired saturation times.
 
 % ------------------------------------------------------------
@@ -219,6 +207,7 @@ Method & Sat.\ [s] & Dep.\ [\%] & Time [s] & Cov.\\
 B1 Fixed-nominal & 17.8$\pm$0.0 & 100 & 56.3$\pm$0.0 & --\\
 B2 Fixed-conservative & 0.0$\pm$0.0 & 0 & 69.2$\pm$0.0 & --\\
 B3 Certainty-equivalent & 31.5$\pm$3.2 & 100 & 73.5$\pm$3.3 & --\\
+B4 Estimate minus margin & 0.0$\pm$0.0 & 0 & 61.2$\pm$1.2 & --\\
 A1 No forgetting & 17.7$\pm$0.1 & 100 & 59.7$\pm$0.3 & 0.36\\
 A2 No spatial decay & 8.0$\pm$1.7 & 60 & 57.5$\pm$0.2 & 0.61\\
 Proposed & 0.2$\pm$0.1 & 0 & 58.6$\pm$0.4 & 0.54\\
@@ -227,6 +216,7 @@ Proposed & 0.2$\pm$0.1 & 0 & 58.6$\pm$0.4 & 0.54\\
 B1 Fixed-nominal & 64.3$\pm$0.0 & 100 & 69.7$\pm$0.0 & --\\
 B2 Fixed-conservative & 0.0$\pm$0.0 & 0 & 69.2$\pm$0.0 & --\\
 B3 Certainty-equivalent & 89.8$\pm$5.4 & 100 & 98.0$\pm$5.6 & --\\
+B4 Estimate minus margin & 0.1$\pm$0.2 & 0 & 68.5$\pm$0.1 & --\\
 A1 No forgetting & 1.3$\pm$0.7 & 0 & 66.7$\pm$0.4 & 0.59\\
 A2 No spatial decay & 0.7$\pm$0.5 & 0 & 66.9$\pm$0.4 & 0.84\\
 Proposed & 0.6$\pm$0.4 & 0 & 67.1$\pm$0.4 & 0.84\\
@@ -235,9 +225,11 @@ Proposed & 0.6$\pm$0.4 & 0 & 67.1$\pm$0.4 & 0.84\\
 B1 Fixed-nominal & 0.0$\pm$0.0 & 0 & 51.0$\pm$0.0 & --\\
 B2 Fixed-conservative & 0.0$\pm$0.0 & 0 & 69.2$\pm$0.0 & --\\
 B3 Certainty-equivalent & 0.3$\pm$0.2 & 0 & 51.8$\pm$0.4 & --\\
+B4 Estimate minus margin & 0.0$\pm$0.0 & 0 & 57.4$\pm$2.0 & --\\
 A1 No forgetting & 0.0$\pm$0.0 & 0 & 54.9$\pm$0.5 & 0.57\\
 A2 No spatial decay & 0.8$\pm$0.3 & 0 & 52.9$\pm$0.4 & 0.75\\
 Proposed & 0.0$\pm$0.0 & 0 & 56.2$\pm$0.8 & 0.76\\
+\bottomrule
 \end{tabular}
 \end{table}
 
@@ -250,35 +242,89 @@ Proposed & 0.0$\pm$0.0 & 0 & 56.2$\pm$0.8 & 0.76\\
 
 \textbf{Hidden drop (S1).} Table~\ref{tab:main} and Fig.~\ref{fig:s1} show the central failure of certainty equivalence: after converging to $\hat\mu\approx0.9$ in the first curves, B3 sees no excitation on the straight, keeps planning for high friction, and enters the test curve at 25\,m/s on $\mu=0.4$; every run saturates the tires (31.5\,s) and departs. Fixed-nominal planning (B1) and the bound without forgetting (A1) fail the same way. Without spatial staleness (A2) the bound decays too slowly (Remark~\ref{rem:decay}) and 60\% of runs depart. The proposed method brakes before the curve, saturates for $0.2\pm0.1$\,s and never departs; the difference from B3 is significant ($p=1.9\times10^{-6}$). It is 10.6\,s faster than the conservative B2.
 
+\begin{table}[t]
+\centering\footnotesize
+\caption{S1 with different friction after the drop (20 runs): lane departures [\%] / mean traversal time [s].}
+\label{tab:wet}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcccc}
+\toprule
+Method & $\mu=0.5$ & $\mu=0.4$ & $\mu=0.33$ & $\mu=0.3$\\
+\midrule
+B4, $m=0.2$ & 0 / 61.7 & 0 / 62.2 & 15 / 62.8 & 70 / 67.6\\
+B4, $m=0.3$ & 0 / 64.3 & 0 / 64.5 & 0 / 64.5 & 0 / 64.5\\
+\textbf{Proposed} & \textbf{0 / 57.7} & \textbf{0 / 58.9} & \textbf{0 / 60.1} & \textbf{0 / 60.4}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Fixed safety margin.} A margin on the estimate (B4) is the natural alternative to an information-aware bound. With $m=0.2$ it is safe in all three scenarios of Table~\ref{tab:main} but 2.6, 1.4 and 1.2\,s slower than the proposed method. The margin works in S1 only because the estimate relaxes to the prior $\mu_0=0.6$ on the straight and $0.6-0.2$ matches the wet friction. Table~\ref{tab:wet} varies the friction after the drop: $m=0.2$ departs in 15\% and 70\% of runs at $\mu=0.33$ and $0.3$, while $m=0.3$ is safe but 4.1--6.6\,s slower than the proposed method, which is safe and fastest at every level. No single fixed margin is both safe and fast, because the margin needed depends on what has actually been observed.
+
 \textbf{Persistent low friction (S2).} B3 starts from the prior mean $\mu_0=0.6$ and overestimates friction until the tires saturate, leading to departures in every run. The bound-based methods stay near the limit with less than 1.5\,s of saturation and are 2--2.5\,s faster than B2.
 
 \textbf{Cost of conservatism (S3).} On high friction the proposed method needs $56.2\pm0.8$\,s versus 51.0\,s for B1 and 69.2\,s for B2, recovering 71\% of the gap. The remaining loss arises because the bound relaxes on straights and must be re-earned at each curve entry.
 
+
+\textbf{Trade-off and staleness length.} Sweeping $\ell$ (10 seeds) gives S3 times of 56.7, 55.2, 54.6 and 53.9\,s for $\ell=50,100,150,300$\,m with zero S1 saturation in all four, while $\ell\to\infty$ gives 52.7\,s but 7.6\,s of S1 saturation; $\ell$ is a tunable trust distance with a wide safe range in this setup.
+
+\textbf{Coverage and stiffness mismatch.} Coverage is below the nominal 95\% in every scenario (Table~\ref{tab:main}). In S1 this is expected, since safety after the drop comes from spatial staleness rather than from the bound; in S2 and S3 it is caused by stiffness mismatch. Sweeping the true-to-model stiffness ratio (10 seeds each) shows the mechanism: at 0.8, 0.9 and 1.0 coverage in S2 is $\ge0.999$ with no saturation, but at 1.1 coverage falls to 0.59 with 2.9\,s of saturation, and at 1.2 the method overestimates friction and saturates for 69\,s. A stiffer-than-modelled tire produces more force at a given slip, which the estimator attributes to higher friction. A model stiffness above the true value therefore makes the bound conservative, while a model stiffness below the true value is the main failure mode.
+
+\subsection{Validation in CARLA}
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.95\columnwidth]{fig3_tradeoff.pdf}
-\caption{Safety--efficiency trade-off: S1 saturation time versus S3 traversal time (means over 20 runs).}
-\label{fig:trade}
+\includegraphics[width=\columnwidth]{fig_carla_scene.pdf}
+\caption{CARLA experiment. (a) Town04 route (1490\,m) and S1 wet patch. (b) Chase view of the proposed planner entering the wet curve after its bound has decayed.}
+\label{fig:scene}
 \end{figure}
 
-\textbf{Trade-off and staleness length.} Fig.~\ref{fig:trade} places the proposed method alone in the region of both low saturation and short traversal time. Sweeping $\ell$ (10 seeds) gives S3 times of 56.7, 55.2, 54.6 and 53.9\,s for $\ell=50,100,150,300$\,m with zero S1 saturation in all four, while $\ell\to\infty$ gives 52.7\,s but 7.6\,s of S1 saturation; $\ell$ is a tunable trust distance with a wide safe range in this setup.
+\textbf{Setup.} We repeated S1 and S3 in CARLA 0.9.16 \cite{dosovitskiy2017} with a Tesla Model~3 on a 1490\,m Town04 highway route without junction turns (minimum radius 165\,m, Fig.~\ref{fig:scene}). Axle distances were computed from the wheel positions ($l_f=1.168$, $l_r=1.836$\,m); the speed-dependent steering reduction was disabled; steering uses pure pursuit with look-ahead $\max(8\,\mathrm{m},\,v\cdot1\,\mathrm{s})$ and speed a PI loop whose throttle is reduced with lateral acceleration. The normalised stiffness was identified from linear-region data as $c=14.5$ (90\% interval 14.51--14.56) and the upper value was used. Friction was set through CARLA's \emph{tire\_friction} parameter: 1.0 for the road and 0.6 for a wet patch that starts 60\,m into the longest straight and ends after the following curve (S1). The speed limit was 30\,m/s. CARLA runs are not bit-reproducible even with a fixed seed, so we report 5 runs per configuration and treat the outcomes as samples.
 
-\textbf{Coverage and stiffness mismatch.} Coverage is below the nominal 95\% in every scenario (Table~\ref{tab:main}). In S1 this is expected by construction: right after the drop the vehicle is on $\mu=0.4$ while the bound still reflects the dry surface, and safety comes from spatial staleness rather than from the bound itself. In S2 and S3 the shortfall is caused by stiffness mismatch. Sweeping the true-to-model stiffness ratio (10 seeds each) shows the mechanism: at 0.8, 0.9 and 1.0 coverage in S2 is $\ge0.999$ with no saturation, but at 1.1 coverage falls to 0.59 with 2.9\,s of saturation, and at 1.2 the method overestimates friction and saturates for 69\,s. A stiffer-than-modelled tire produces more force at a given slip, which the estimator attributes to higher friction. Underestimating stiffness is therefore safe, and overestimating it is the main failure mode.
+\textbf{Controller acceptance and usable grip.} To separate controller limitations from planning decisions, the low-level controller was frozen after an acceptance test: fixed planning friction 0.5 and 0.6 (peak planned lateral acceleration 0.43 and 0.51\,g) completed the dry route in all runs, while 0.7 (0.60\,g) left the lane in every run. Together with a tyre-curve fit ($\mu\approx0.69$), this places the usable dry friction at about 0.6--0.7; the same fit gives about 0.33 on the wet patch.
 
-\textbf{CARLA.} \todo{Run carla\_friction\_bound.py for S1 and S3 (all six methods, at least 10 seeds each), identify $c$ in CARLA first with a low-speed steady-state test, and report the same metrics; until then all results above are simulation-only.}
+\begin{table}[t]
+\centering\footnotesize
+\caption{CARLA results (5 runs each): departures [\%] and mean time of finished runs [s].}
+\label{tab:carla}
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{S1 wet patch} & \multicolumn{2}{c}{S3 dry}\\
+Method & Dep.\ [\%] & Time [s] & Dep.\ [\%] & Time [s]\\
+\midrule
+B1 Fixed-nominal & 100 & -- & 100 & --\\
+B2 Fixed-conservative & 0 & 70.1 & 0 & 70.1\\
+B3 Certainty-equivalent & 100 & -- & 100 & --\\
+B4 Estimate minus margin & 0 & 68.3 & 60 & 67.9\\
+A1 No forgetting & 0 & 67.7 & 0 & 67.5\\
+A2 No spatial decay & 0 & 68.0 & 40 & 67.9\\
+\textbf{Proposed} & \textbf{0} & \textbf{68.2} & \textbf{0} & \textbf{68.2}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig4_carla_s1.pdf}
+\caption{CARLA, scenario S1 (grey: wet patch; green bands: usable grip). Top: estimate and bound of the proposed method, and the certainty-equivalent estimate (B3). Middle and bottom: speed and lateral error. Both estimates are similar at the end of the straight, but only the bound has decayed, so only the proposed planner slows before the wet curve; B3 enters at 26.6\,m/s and leaves the lane (cross).}
+\label{fig:carla}
+\end{figure}
+
+\textbf{Results.} Table~\ref{tab:carla} shows that the proposed method was the only adaptive planner without departures in both scenarios and was 1.8\,s (2.6\%) faster than the fixed conservative planner. Fixed-nominal planning ($\mu=0.9$) exceeded the usable grip and departed in every run. Certainty-equivalent planning departed in every run, nine times in the first curve, and in 7 of 8 additional S1 runs, all in the first curve: its speed plan followed the estimate at curve entry, which first dropped to about 0.2 and then rose to 0.65--0.71, at or above the usable grip, so the vehicle entered the curve accelerating and lost the rear axle. In the remaining run (Fig.~\ref{fig:carla}) B3 reached the end of the straight with $\hat\mu\approx0.53$, kept 29\,m/s until 740\,m and entered the wet curve at 26.6\,m/s, demanding about 0.58\,g against roughly 0.33\,g available; the proposed planner, whose bound had decayed to 0.30, slowed to 21\,m/s first. Without spatial staleness (A2), the bound reached 0.80--0.82 on the dry road and the vehicle departed in 2 of 5 runs; the fixed margin (B4) departed in 3 of 5 dry runs at the same curve, because subtracting 0.2 from an overestimated friction still left the plan at or above the usable grip.
+
+\textbf{Two differences from simulation.} First, the estimator \emph{overestimated} dry friction in CARLA ($\hat\mu$ 0.77--0.94 against a usable 0.6--0.7), which we attribute to the mismatch between the $\tanh$ model~\eqref{eq:tire} and CARLA's tyre model; the proposed method remained safe because of spatial staleness and the factor $\eta$, not because the bound was correct, so the coverage interpretation of~\eqref{eq:bound} does not carry over. Second, the vehicle cornered at only 30--45\% of the usable grip, so by~\eqref{eq:series} the estimators accumulated little information and never became confident; consequently the ablation without forgetting (A1) did not fail, unlike in simulation. Both are consistent with Section~IV: staleness is dangerous in proportion to the excitation that produced the estimate, and the bound is only as good as the tyre model.
 
 % ------------------------------------------------------------
 \section{Discussion and Limitations}
-The results are from a simplified simulation: a point-mass friction circle, static axle loads, ideal sensing of $a_y$ and $\dot r$ with additive noise, and a tire model whose shape the estimator knows. The most important limitation is the dependence on $c$: the bound is only as trustworthy as the stiffness model, and a conservative (lower) stiffness value, or joint estimation of $c$ in the linear region, should be used in practice. Slip-angle reconstruction requires a lateral-velocity estimate whose error enters the regressor. The spatial staleness model~\eqref{eq:decay} is a design choice, not derived from road statistics; map or camera-based surface priors could replace it. Finally, the planner is passive: it never deliberately excites the tires. Planning for information---trading a small excitation manoeuvre for a tighter bound---is a dual-control problem and a direction for future work.
+The main quantitative results are from a simplified simulation, and the CARLA study shows that model mismatch can make the bound overconfident: a point-mass friction circle, static axle loads, ideal sensing of $a_y$ and $\dot r$ with additive noise, and a tire model whose shape the estimator knows. The most important limitation is the dependence on $c$: the bound is only as trustworthy as the stiffness model, and a conservative (higher) model stiffness, or joint estimation of $c$ in the linear region, should be used in practice. The spatial staleness model~\eqref{eq:decay} is a design choice, not derived from road statistics; map or camera-based surface priors could replace it. Finally, the planner is passive: it never deliberately excites the tires. Planning for information---trading a small excitation manoeuvre for a tighter bound---is a dual-control problem and a direction for future work.
 
 \section{Conclusion}
-For a saturating tire model, information about friction grows with the sixth power of tire utilisation, so ordinary driving leaves friction largely unidentified. An excitation-aware lower confidence bound with stabilised forgetting and spatial staleness, used in a friction-circle speed planner, removed tire saturation and lane departures after a hidden friction drop in simulation, where certainty-equivalent planning failed in every run, while recovering 71\% of the speed lost by fixed conservative planning. The method is sensitive to overestimated tire stiffness, which must be addressed before deployment.
+For a saturating tire model, information about friction grows with the sixth power of tire utilisation, so ordinary driving leaves friction largely unidentified. An excitation-aware lower confidence bound with stabilised forgetting and spatial staleness, used in a friction-circle speed planner, removed tire saturation and lane departures after a hidden friction drop in simulation, where certainty-equivalent planning failed in every run, while recovering 71\% of the speed lost by fixed conservative planning; in CARLA it was the only adaptive planner without departures. The method is sensitive to underestimating tire stiffness in the model, which must be addressed before deployment.
 
 \section*{Acknowledgment}
-\todo{Funding and support. Required by IEEE policy: state that AI tools (name the tool) were used to draft text, generate simulation code and figures, and that the author verified all content.}
+The author used an AI assistant (Claude, Anthropic) to help formulate the estimator and planner, write the simulation and CARLA code, draft the manuscript text and produce the figures. The author ran all experiments, verified the code, results and text, and takes full responsibility for the content.
 
 \begin{thebibliography}{99}
-\small
+\footnotesize
 \bibitem{gustafsson1997} F.~Gustafsson, ``Slip-based tire--road friction estimation,'' \emph{Automatica}, vol.~33, no.~6, pp.~1087--1099, 1997.
 \bibitem{hahn2002} J.-O.~Hahn, R.~Rajamani, and L.~Alexander, ``GPS-based real-time identification of tire--road friction coefficient,'' \emph{IEEE Trans.\ Control Syst.\ Technol.}, vol.~10, no.~3, pp.~331--343, 2002.
 \bibitem{khaleghian2017} S.~Khaleghian, A.~Emami, and S.~Taheri, ``A technical survey on tire--road friction estimation,'' \emph{Friction}, vol.~5, no.~2, pp.~123--146, 2017.
@@ -286,13 +332,15 @@ For a saturating tire model, information about friction grows with the sixth pow
 \bibitem{funke2017} J.~Funke, M.~Brown, S.~M.~Erlien, and J.~C.~Gerdes, ``Collision avoidance and stabilization for autonomous vehicles in emergency scenarios,'' \emph{IEEE Trans.\ Control Syst.\ Technol.}, vol.~25, no.~4, pp.~1204--1216, 2017.
 \bibitem{christ2021} F.~Christ, A.~Wischnewski, A.~Heilmeier, and B.~Lohmann, ``Time-optimal trajectory planning for a race car considering variable tyre--road friction coefficients,'' \emph{Veh.\ Syst.\ Dyn.}, vol.~59, no.~4, pp.~588--612, 2021.
 \bibitem{svensson2022} L.~Svensson \emph{et al.}, ``Traction adaptive motion planning and control at the limits of handling,'' \emph{IEEE Trans.\ Control Syst.\ Technol.}, vol.~30, no.~5, p.~1888, 2022.
-\bibitem{iarc2026} \todo{Authors}, ``Online constraint optimization-based indirect-adaptive robust control for autonomous vehicles with unknown friction,'' arXiv:2610.22675, 2026.
+\bibitem{iarc2026} Y.~Zhou \emph{et al.}, ``Online constraint optimization-based indirect-adaptive robust control for autonomous vehicles with unknown friction,'' arXiv:2610.22675, 2026.
+\bibitem{bergerhoff2026} T.~Bergerhoff, S.~Baader, P.~Mei\ss ner, and F.~Deinzer, ``Pushing the performance limits in autonomous racing: Continuous stability-aware adaptive velocity planning in Formula Student Driverless,'' arXiv:2606.10733, 2026.
 \bibitem{kapania2016} N.~R.~Kapania, J.~Subosits, and J.~C.~Gerdes, ``A sequential two-step algorithm for fast generation of vehicle racing trajectories,'' \emph{J.\ Dyn.\ Syst.\ Meas.\ Control}, vol.~138, no.~9, 2016.
 \bibitem{ljung1999} L.~Ljung, \emph{System Identification: Theory for the User}, 2nd~ed. Prentice Hall, 1999.
 \bibitem{astrom1995} K.~J.~{\AA}str\"om and B.~Wittenmark, \emph{Adaptive Control}, 2nd~ed. Addison-Wesley, 1995.
 \bibitem{narendra1989} K.~S.~Narendra and A.~M.~Annaswamy, \emph{Stable Adaptive Systems}. Prentice Hall, 1989.
 \bibitem{kulhavy1993} R.~Kulhav\'y and M.~B.~Zarrop, ``On a general concept of forgetting,'' \emph{Int.\ J.\ Control}, vol.~58, no.~4, pp.~905--924, 1993.
 \bibitem{abbasi2011} Y.~Abbasi-Yadkori, D.~P\'al, and C.~Szepesv\'ari, ``Improved algorithms for linear stochastic bandits,'' in \emph{Adv.\ Neural Inf.\ Process.\ Syst.}, 2011, pp.~2312--2320.
+\bibitem{dosovitskiy2017} A.~Dosovitskiy, G.~Ros, F.~Codevilla, A.~L\'opez, and V.~Koltun, ``CARLA: An open urban driving simulator,'' in \emph{Proc.\ Conf.\ Robot Learn.}, 2017, pp.~1--16.
 \end{thebibliography}
 
 \end{document}

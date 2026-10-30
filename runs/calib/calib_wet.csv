@@ -1,0 +1,4 @@
+tire_friction,mu,c,max_util,ay_max_g,n
+0.45,,,,,256
+0.5,,,,,254
+0.6,,,,,251

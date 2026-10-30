@@ -1,3 +1,15 @@
+# Excitation-Aware Friction Capability Bounds for Uncertainty-Aware Speed Planning of Autonomous Ground Vehicles
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23796513.svg)](https://doi.org/10.5281/zenodo.23796513)
+
+**Munavir Zaman P K** · Preprint, under review at IEEE Robotics and Automation Letters (RA-L)
+
+- Paper (PDF): [paper/ral_friction_bound.pdf](paper/ral_friction_bound.pdf)
+- Preprint DOI: https://doi.org/10.5281/zenodo.23796513
+- Supplementary video: [release v1.0](https://github.com/munavirzaman-git/friction-bound/releases/tag/v1.0)
+
+---
+
 # Excitation-aware friction bound — reproduction package
 
 ## 1. Setup
